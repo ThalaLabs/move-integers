@@ -8,8 +8,11 @@ module move_int::i128 {
     /// max number that a I128 could represent = (0 followed by 127 1s) = (1 << 127) - 1
     const BITS_MAX_I128: u128 = 0x7fffffffffffffffffffffffffffffff;
 
-    /// 128 1s
-    const MASK_U128: u128 = 0xffffffffffffffffffffffffffffffff;
+    /// (1 << 128) - 1
+    const MAX_U128: u128 = 340282366920938463463374607431768211455;
+
+    /// 1 << 128
+    const MAX_U128_PLUS_ONE: u256 = 340282366920938463463374607431768211456;
 
     const LT: u8 = 0;
     const EQ: u8 = 1;
@@ -40,7 +43,7 @@ module move_int::i128 {
 
     /// Performs wrapping addition on two I128 numbers
     public fun wrapping_add(num1: I128, num2: I128): I128 {
-        I128 { bits: (((num1.bits as u256) + (num2.bits as u256)) & (MASK_U128 as u256) as u128) }
+        I128 { bits: (((num1.bits as u256) + (num2.bits as u256)) % MAX_U128_PLUS_ONE as u128) }
     }
 
     /// Performs checked addition on two I128 numbers, abort on overflow
@@ -223,6 +226,6 @@ module move_int::i128 {
     /// Which is fine for our specific use case
     fun twos_complement(v: u128): u128 {
         if (v == 0) 0
-        else (v ^ MASK_U128) + 1
+        else MAX_U128 - v + 1
     }
 }
