@@ -6,9 +6,9 @@ module move_int::i64 {
     /// Interprets the I64 `bits` field as a signed integer.
     spec fun to_num(i: I64): num {
         // Check sign bit (bit 63): if set, value is negative
-        if (i.bits >= (1 << 63)) {
+        if (i.bits >= TWO_POW_63) {
             // Interpret bits as two's complement negative number
-            (i.bits as num) - (1 << 64)
+            (i.bits as num) - MAX_U64_PLUS_ONE
         } else {
             (i.bits as num)
         }
@@ -22,6 +22,8 @@ module move_int::i64 {
 
     /// max number that a I64 could represent = (0 followed by 63 1s) = (1 << 63) - 1
     const BITS_MAX_I64: u64 = 0x7fffffffffffffff;
+
+    const TWO_POW_63: u64 = 9223372036854775808;
 
     /// (1 << 64) - 1
     const MAX_U64: u64 = 18446744073709551615;
@@ -80,7 +82,6 @@ module move_int::i64 {
         assert!(!overflow, OVERFLOW);
         sum
     }
-
     spec add {
         pragma opaque;
 
@@ -153,9 +154,8 @@ module move_int::i64 {
             (abs_u64(num1) as u128) * (abs_u64(num2) as u128) > (BITS_MAX_I64 as u128)
             with OVERFLOW;
 
-        // TODO: Address timeouts
-        // // === Behavior guarantees ===
-        // ensures to_num(result) == to_num(num1) * to_num(num2);
+        // === Behavior guarantees ===
+        ensures to_num(result) == to_num(num1) * to_num(num2);
     }
 
     /// Performs division on two I64 numbers
@@ -179,11 +179,10 @@ module move_int::i64 {
         aborts_if sign(num1) != sign(num2) && abs_u64(num1) / abs_u64(num2) > BITS_MIN_I64 with OVERFLOW;
 
         // === Behavior guarantees ===
-        // TODO: Address timeouts
         // Division result always rounds toward zero.
         // The result multiplied back gives the truncated part of num1
-        // ensures !is_zero(num2) ==>
-        //     to_num(num1) == to_num(result) * to_num(num2) + to_num(mod(num1, num2));
+        ensures !is_zero(num2) ==>
+            to_num(num1) == to_num(result) * to_num(num2) + to_num(mod(num1, num2));
 
         // Zero divided by anything is zero
         ensures is_zero(num1) ==> to_num(result) == 0;
@@ -195,32 +194,10 @@ module move_int::i64 {
 
     /// Performs modulo on two I64 numbers
     /// a mod b = a - b * (a / b)
+    // TODO: Spec method
     public fun mod(num1: I64, num2: I64): I64 {
         let quotient = div(num1, num2);
         sub(num1, mul(num2, quotient))
-    }
-
-    spec mod {
-        // ==== Div abort conditions ====
-        aborts_if is_zero(num2) with DIVISION_BY_ZERO;
-
-        // MIN_I64 / -1 = MAX_I64 + 1, which is too big to fit in an I64
-        aborts_if sign(num1) == sign(num2) && abs_u64(num1) / abs_u64(num2) > BITS_MAX_I64 with OVERFLOW;
-        aborts_if sign(num1) != sign(num2) && abs_u64(num1) / abs_u64(num2) > BITS_MIN_I64 with OVERFLOW;
-
-        // ==== Mul abort conditions ====
-        aborts_if sign(num1) != sign(num2) &&
-            (abs_u64(num1) as u128) * (abs_u64(num2) as u128) > (BITS_MIN_I64 as u128)
-            with OVERFLOW;
-
-        aborts_if sign(num1) == sign(num2) &&
-            (abs_u64(num1) as u128) * (abs_u64(num2) as u128) > (BITS_MAX_I64 as u128)
-            with OVERFLOW;
-
-        // Mod conditions
-        // TODO: Address timeout
-        // // === Mathematical definition ===
-        // ensures to_num(result) == to_num(num1) - to_num(num2) * to_num(div(num1, num2));
     }
 
     /// Returns the absolute value of an I64 number
@@ -272,6 +249,7 @@ module move_int::i64 {
     }
 
     /// Raises an I64 number to a u64 power
+    // TODO: Spec method that plays nicely with loops ("enter loop, variable(s) base, exponent, result havocked and reassigned")
     public fun pow(base: I64, exponent: u64): I64 {
         if (exponent == 0) {
             return from(1)
@@ -286,32 +264,6 @@ module move_int::i64 {
         };
         result
     }
-    spec pow {
-        pragma opaque;
-
-        // TODO: Prover does not work cleanly with loops. Invariants may be defined
-        // - "enter loop, variable(s) base, exponent, result havocked and reassigned"
-        // Base case: any number to the power of 0 is 1
-        // ensures exponent == 0 ==> to_num(result) == 1;
-
-        // TODO: Prover does not work cleanly with loops. Invariants may be defined
-        // If base is zero, result must be zero for any non-zero exponent
-        // ensures to_num(base) == 0 && exponent > 0 ==> to_num(result) == 0;
-
-        // If base is 1 or -1, result is always 1 or alternates by parity
-        // ensures to_num(base) == 1 ==> to_num(result) == 1;
-        // ensures to_num(base) == to_num(sub(zero(), from(1))) && exponent % 2 == 0 ==> result == from(1);
-        // ensures to_num(base) == to_num(sub(zero(), from(1))) && exponent % 2 == 1 ==> result == neg_from(1);
-
-        // If base is positive, result is also positive
-        // ensures to_num(base) > 0 ==> !is_neg(result);
-
-        // If base is negative and exponent is even, result is positive
-        // ensures to_num(base) < 0 && exponent % 2 == 0 ==> !is_neg(result);
-
-        // If base is negative and exponent is odd, result is negative
-        // ensures to_num(base) < 0 && exponent % 2 == 1 ==> is_neg(result);
-    }
 
     /// Creates an I64 from a u64 without any checks
     public fun pack(v: u64): I64 {
@@ -325,7 +277,7 @@ module move_int::i64 {
 
     /// Returns the sign of an I64 number (0 for positive, 1 for negative)
     public fun sign(v: I64): u8 {
-        ((v.bits >> 63) as u8)
+        ((v.bits / TWO_POW_63) as u8)
     }
     spec sign {
         // Result must be 0 or 1 (unsigned 8-bit)
@@ -377,10 +329,10 @@ module move_int::i64 {
         ensures result == (sign(v) == 1);
 
         // If result is true, the number is negative in two's complement
-        ensures result ==> v.bits >= (1 << 63);
+        ensures result ==> v.bits >= TWO_POW_63;
 
         // If result is false, the number is non-negative
-        ensures !result ==> v.bits < (1 << 63);
+        ensures !result ==> v.bits < TWO_POW_63;
     }
 
     /// Compares two I64 numbers, returning LT, EQ, or GT
@@ -484,7 +436,7 @@ module move_int::i64 {
 
     spec twos_complement {
         ensures v == 0 ==> result == 0;
-        ensures v > 0 ==> result + v == (1 << 64);
+        ensures v > 0 ==> result + v == MAX_U64_PLUS_ONE;
     }
 
     #[test_only]
