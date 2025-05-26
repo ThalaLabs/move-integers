@@ -218,29 +218,6 @@ module move_int::i128 {
         cmp(num1, num2) <= EQ
     }
 
-    #[deprecated]
-    /// Performs bitwise OR on two I128 numbers
-    public fun or(num1: I128, num2: I128): I128 {
-        I128 { bits: (num1.bits | num2.bits) }
-    }
-
-    #[deprecated]
-    /// Performs bitwise AND on two I128 numbers
-    public fun and(num1: I128, num2: I128): I128 {
-        I128 { bits: (num1.bits & num2.bits) }
-    }
-
-    #[deprecated]
-    public fun from_u128(v: u128): I128 {
-        pack(v)
-    }
-
-    #[deprecated]
-    // Converts an I128 to u128
-    public fun as_u128(v: I128): u128 {
-        unpack(v)
-    }
-
     /// Two's complement in order to dervie negative representation of bits
     /// It is overflow-proof because we hardcode 2's complement of 0 to be 0
     /// Which is fine for our specific use case

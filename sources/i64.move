@@ -1,4 +1,7 @@
 module move_int::i64 {
+    spec module {
+        pragma aborts_if_is_strict;
+    }
 
     const OVERFLOW: u64 = 0;
     const DIVISION_BY_ZERO: u64 = 1;
@@ -9,8 +12,11 @@ module move_int::i64 {
     /// max number that a I64 could represent = (0 followed by 63 1s) = (1 << 63) - 1
     const BITS_MAX_I64: u64 = 0x7fffffffffffffff;
 
-    /// 64 1s
-    const MASK_U64: u64 = 0xffffffffffffffff;
+    /// (1 << 64) - 1
+    const MAX_U64: u64 = 18446744073709551615;
+
+    /// 1 << 64
+    const MAX_U64_PLUS_ONE: u128 = 18446744073709551616;
 
     const LT: u8 = 0;
     const EQ: u8 = 1;
@@ -26,15 +32,30 @@ module move_int::i64 {
         I64 { bits: v }
     }
 
+    spec from {
+        aborts_if v > BITS_MAX_I64 with OVERFLOW;
+    }
+
     /// Creates a negative I64 from a u64, asserting that it's not greater than the minimum negative value
     public fun neg_from(v: u64): I64 {
         assert!(v <= BITS_MIN_I64, OVERFLOW);
         I64 { bits: twos_complement(v) }
     }
 
+    spec neg_from {
+        aborts_if v > BITS_MIN_I64 with OVERFLOW;
+
+        // from(v) + neg_from(v) == 0
+        ensures is_zero(add(result, from(v)));
+    }
+
     /// Performs wrapping addition on two I64 numbers
     public fun wrapping_add(num1: I64, num2: I64): I64 {
-        I64 { bits: (((num1.bits as u128) + (num2.bits as u128)) & (MASK_U64 as u128) as u64) }
+        I64 { bits: (((num1.bits as u128) + (num2.bits as u128)) % MAX_U64_PLUS_ONE as u64) }
+    }
+
+    spec wrapping_add {
+        ensures result.bits == (num1.bits + num2.bits) % MAX_U64_PLUS_ONE;
     }
 
     /// Performs checked addition on two I64 numbers, abort on overflow
@@ -49,6 +70,14 @@ module move_int::i64 {
         sum
     }
 
+    spec add {
+        // aborts if overflow
+        // add(a, -a) returns 0
+        // add 0 gets the same result
+        // add(a, positive number) > a
+        // add(a, negative number) < a
+    }
+
     /// Performs wrapping subtraction on two I64 numbers
     public fun wrapping_sub(num1: I64, num2: I64): I64 {
         wrapping_add(num1, I64 { bits: twos_complement(num2.bits) })
@@ -57,6 +86,13 @@ module move_int::i64 {
     /// Performs checked subtraction on two I64 numbers, asserting on overflow
     public fun sub(num1: I64, num2: I64): I64 {
         add(num1, I64 { bits: twos_complement(num2.bits) })
+    }
+
+    spec sub {
+        // aborts if overflow
+        // sub 0 gets the same result
+        // sub(a, a) returns 0
+        // sub(a, b) == add(a, -b)
     }
 
     /// Performs multiplication on two I64 numbers
@@ -69,6 +105,11 @@ module move_int::i64 {
             assert!(product <= (BITS_MAX_I64 as u128), OVERFLOW);
             from((product as u64))
         }
+    }
+
+    spec mul {
+        // aborts if negative overflow
+        // aborts if positive overflow
     }
 
     /// Performs division on two I64 numbers
@@ -89,6 +130,10 @@ module move_int::i64 {
         sub(num1, mul(num2, quotient))
     }
 
+    spec mod {
+        aborts_if is_zero(num2) with DIVISION_BY_ZERO;
+    }
+
     /// Returns the absolute value of an I64 number
     public fun abs(v: I64): I64 {
         let bits = if (sign(v) == 0) { v.bits }
@@ -97,6 +142,26 @@ module move_int::i64 {
             twos_complement(v.bits)
         };
         I64 { bits }
+    }
+
+    spec abs {
+        aborts_if is_neg(v) && v.bits <= BITS_MIN_I64 with OVERFLOW;
+        ensures is_neg(v) ==> is_zero(add(abs(v), v));
+        ensures !is_neg(v) ==> abs(v).bits == v.bits;
+
+        // FIXME: WHY the error?
+        // error: specification expression cannot call impure Move function `eq`
+        //     | /path/to/i64.move:129:32
+        //     |
+        // 129 .         ensures !is_neg(v) ==> eq(abs(v), v);
+        //     |                                ^^^^^^^^^^^^^ called here
+        //     .
+        // 196 |         if (num1.bits == num2.bits) return EQ;
+        //     |                                     --------- in `cmp`: return not allowed in specifications
+        //     .
+        // 210 |         cmp(num1, num2) == EQ
+        //     |         --------------- transitively calling `cmp` from `eq` here
+        // ensures !is_neg(v) ==> eq(abs(v), v);
     }
 
     /// Returns the absolute value of an I64 number as a u64
@@ -200,34 +265,22 @@ module move_int::i64 {
         cmp(num1, num2) <= EQ
     }
 
-    #[deprecated]
-    /// Performs bitwise OR on two I64 numbers
-    public fun or(num1: I64, num2: I64): I64 {
-        I64 { bits: (num1.bits | num2.bits) }
-    }
-
-    #[deprecated]
-    /// Performs bitwise AND on two I64 numbers
-    public fun and(num1: I64, num2: I64): I64 {
-        I64 { bits: (num1.bits & num2.bits) }
-    }
-
-    #[deprecated]
-    public fun from_u64(v: u64): I64 {
-        pack(v)
-    }
-
-    #[deprecated]
-    // Converts an I64 to u64
-    public fun as_u64(v: I64): u64 {
-        unpack(v)
-    }
-
     /// Two's complement in order to dervie negative representation of bits
     /// It is overflow-proof because we hardcode 2's complement of 0 to be 0
     /// Which is fine for our specific use case
     fun twos_complement(v: u64): u64 {
         if (v == 0) 0
-        else (v ^ MASK_U64) + 1
+        // (1 << 64) - v
+        else MAX_U64 - v + 1
+    }
+
+    spec twos_complement {
+        ensures v == 0 ==> result == 0;
+        ensures v > 0 ==> result + v == (1 << 64);
+    }
+
+    #[test_only]
+    fun twos_complement_for_test(v: u64): u64 {
+        twos_complement(v)
     }
 }
