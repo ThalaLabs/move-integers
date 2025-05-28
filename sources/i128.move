@@ -8,8 +8,11 @@ module move_int::i128 {
     /// max number that a I128 could represent = (0 followed by 127 1s) = (1 << 127) - 1
     const BITS_MAX_I128: u128 = 0x7fffffffffffffffffffffffffffffff;
 
-    /// 128 1s
-    const MASK_U128: u128 = 0xffffffffffffffffffffffffffffffff;
+    /// (1 << 128) - 1
+    const MAX_U128: u128 = 340282366920938463463374607431768211455;
+
+    /// 1 << 128
+    const TWO_POW_U128: u256 = 340282366920938463463374607431768211456;
 
     const LT: u8 = 0;
     const EQ: u8 = 1;
@@ -40,7 +43,7 @@ module move_int::i128 {
 
     /// Performs wrapping addition on two I128 numbers
     public fun wrapping_add(num1: I128, num2: I128): I128 {
-        I128 { bits: (((num1.bits as u256) + (num2.bits as u256)) & (MASK_U128 as u256) as u128) }
+        I128 { bits: (((num1.bits as u256) + (num2.bits as u256)) % TWO_POW_U128 as u128) }
     }
 
     /// Performs checked addition on two I128 numbers, abort on overflow
@@ -140,7 +143,7 @@ module move_int::i128 {
         };
         let result = from(1);
         while (exponent > 0) {
-            if (exponent & 1 == 1) {
+            if (exponent % 2 == 1) {
                 result = mul(result, base);
             };
             base = mul(base, base);
@@ -161,7 +164,7 @@ module move_int::i128 {
 
     /// Returns the sign of an I128 number (0 for positive, 1 for negative)
     public fun sign(v: I128): u8 {
-        ((v.bits >> 127) as u8)
+        ((v.bits / BITS_MIN_I128) as u8)
     }
 
     /// Creates and returns an I128 representing zero
@@ -181,15 +184,19 @@ module move_int::i128 {
 
     /// Compares two I128 numbers, returning LT, EQ, or GT
     public fun cmp(num1: I128, num2: I128): u8 {
-        if (num1.bits == num2.bits) return EQ;
         let sign1 = sign(num1);
         let sign2 = sign(num2);
-        if (sign1 > sign2) return LT;
-        if (sign1 < sign2) return GT;
-        if (num1.bits > num2.bits) {
-            return GT
+
+        if (num1.bits == num2.bits) {
+            EQ
+        } else if (sign1 > sign2) {
+            LT
+        } else if (sign1 < sign2) {
+            GT
+        } else if (num1.bits > num2.bits) {
+            GT
         } else {
-            return LT
+            LT
         }
     }
 
@@ -218,34 +225,11 @@ module move_int::i128 {
         cmp(num1, num2) <= EQ
     }
 
-    #[deprecated]
-    /// Performs bitwise OR on two I128 numbers
-    public fun or(num1: I128, num2: I128): I128 {
-        I128 { bits: (num1.bits | num2.bits) }
-    }
-
-    #[deprecated]
-    /// Performs bitwise AND on two I128 numbers
-    public fun and(num1: I128, num2: I128): I128 {
-        I128 { bits: (num1.bits & num2.bits) }
-    }
-
-    #[deprecated]
-    public fun from_u128(v: u128): I128 {
-        pack(v)
-    }
-
-    #[deprecated]
-    // Converts an I128 to u128
-    public fun as_u128(v: I128): u128 {
-        unpack(v)
-    }
-
     /// Two's complement in order to dervie negative representation of bits
     /// It is overflow-proof because we hardcode 2's complement of 0 to be 0
     /// Which is fine for our specific use case
     fun twos_complement(v: u128): u128 {
         if (v == 0) 0
-        else (v ^ MASK_U128) + 1
+        else MAX_U128 - v + 1
     }
 }

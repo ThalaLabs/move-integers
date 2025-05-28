@@ -1,5 +1,4 @@
 module move_int::i64 {
-
     const OVERFLOW: u64 = 0;
     const DIVISION_BY_ZERO: u64 = 1;
 
@@ -9,8 +8,11 @@ module move_int::i64 {
     /// max number that a I64 could represent = (0 followed by 63 1s) = (1 << 63) - 1
     const BITS_MAX_I64: u64 = 0x7fffffffffffffff;
 
-    /// 64 1s
-    const MASK_U64: u64 = 0xffffffffffffffff;
+    /// (1 << 64) - 1
+    const MAX_U64: u64 = 18446744073709551615;
+
+    /// 1 << 64
+    const TWO_POW_64: u128 = 18446744073709551616;
 
     const LT: u8 = 0;
     const EQ: u8 = 1;
@@ -34,7 +36,7 @@ module move_int::i64 {
 
     /// Performs wrapping addition on two I64 numbers
     public fun wrapping_add(num1: I64, num2: I64): I64 {
-        I64 { bits: (((num1.bits as u128) + (num2.bits as u128)) & (MASK_U64 as u128) as u64) }
+        I64 { bits: (((num1.bits as u128) + (num2.bits as u128)) % TWO_POW_64 as u64) }
     }
 
     /// Performs checked addition on two I64 numbers, abort on overflow
@@ -116,13 +118,14 @@ module move_int::i64 {
     }
 
     /// Raises an I64 number to a u64 power
+    // TODO: Spec method that plays nicely with loops ("enter loop, variable(s) base, exponent, result havocked and reassigned")
     public fun pow(base: I64, exponent: u64): I64 {
         if (exponent == 0) {
             return from(1)
         };
         let result = from(1);
-        while (exponent > 0) {
-            if (exponent & 1 == 1) {
+        while (exponent > 0)  {
+            if (exponent % 2 == 1) {
                 result = mul(result, base);
             };
             base = mul(base, base);
@@ -143,7 +146,7 @@ module move_int::i64 {
 
     /// Returns the sign of an I64 number (0 for positive, 1 for negative)
     public fun sign(v: I64): u8 {
-        ((v.bits >> 63) as u8)
+        ((v.bits / BITS_MIN_I64) as u8)
     }
 
     /// Creates and returns an I64 representing zero
@@ -163,15 +166,19 @@ module move_int::i64 {
 
     /// Compares two I64 numbers, returning LT, EQ, or GT
     public fun cmp(num1: I64, num2: I64): u8 {
-        if (num1.bits == num2.bits) return EQ;
         let sign1 = sign(num1);
         let sign2 = sign(num2);
-        if (sign1 > sign2) return LT;
-        if (sign1 < sign2) return GT;
-        if (num1.bits > num2.bits) {
-            return GT
+
+        if (num1.bits == num2.bits) {
+            EQ
+        } else if (sign1 > sign2) {
+            LT
+        } else if (sign1 < sign2) {
+            GT
+        } else if (num1.bits > num2.bits) {
+            GT
         } else {
-            return LT
+            LT
         }
     }
 
@@ -200,34 +207,17 @@ module move_int::i64 {
         cmp(num1, num2) <= EQ
     }
 
-    #[deprecated]
-    /// Performs bitwise OR on two I64 numbers
-    public fun or(num1: I64, num2: I64): I64 {
-        I64 { bits: (num1.bits | num2.bits) }
-    }
-
-    #[deprecated]
-    /// Performs bitwise AND on two I64 numbers
-    public fun and(num1: I64, num2: I64): I64 {
-        I64 { bits: (num1.bits & num2.bits) }
-    }
-
-    #[deprecated]
-    public fun from_u64(v: u64): I64 {
-        pack(v)
-    }
-
-    #[deprecated]
-    // Converts an I64 to u64
-    public fun as_u64(v: I64): u64 {
-        unpack(v)
-    }
-
     /// Two's complement in order to dervie negative representation of bits
     /// It is overflow-proof because we hardcode 2's complement of 0 to be 0
     /// Which is fine for our specific use case
     fun twos_complement(v: u64): u64 {
         if (v == 0) 0
-        else (v ^ MASK_U64) + 1
+        // (1 << 64) - v
+        else MAX_U64 - v + 1
+    }
+
+    #[test_only]
+    fun twos_complement_for_test(v: u64): u64 {
+        twos_complement(v)
     }
 }
