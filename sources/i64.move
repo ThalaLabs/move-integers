@@ -8,13 +8,11 @@ module move_int::i64 {
     /// max number that a I64 could represent = (0 followed by 63 1s) = (1 << 63) - 1
     const BITS_MAX_I64: u64 = 0x7fffffffffffffff;
 
-    const TWO_POW_63: u64 = 9223372036854775808;
-
     /// (1 << 64) - 1
     const MAX_U64: u64 = 18446744073709551615;
 
     /// 1 << 64
-    const MAX_U64_PLUS_ONE: u128 = 18446744073709551616;
+    const TWO_POW_64: u128 = 18446744073709551616;
 
     const LT: u8 = 0;
     const EQ: u8 = 1;
@@ -38,7 +36,7 @@ module move_int::i64 {
 
     /// Performs wrapping addition on two I64 numbers
     public fun wrapping_add(num1: I64, num2: I64): I64 {
-        I64 { bits: (((num1.bits as u128) + (num2.bits as u128)) % MAX_U64_PLUS_ONE as u64) }
+        I64 { bits: (((num1.bits as u128) + (num2.bits as u128)) % TWO_POW_64 as u64) }
     }
 
     /// Performs checked addition on two I64 numbers, abort on overflow
@@ -88,7 +86,6 @@ module move_int::i64 {
 
     /// Performs modulo on two I64 numbers
     /// a mod b = a - b * (a / b)
-    // TODO: Spec method
     public fun mod(num1: I64, num2: I64): I64 {
         let quotient = div(num1, num2);
         sub(num1, mul(num2, quotient))
@@ -128,7 +125,7 @@ module move_int::i64 {
         };
         let result = from(1);
         while (exponent > 0)  {
-            if (exponent & 1 == 1) {
+            if (exponent % 2 == 1) {
                 result = mul(result, base);
             };
             base = mul(base, base);
@@ -149,7 +146,7 @@ module move_int::i64 {
 
     /// Returns the sign of an I64 number (0 for positive, 1 for negative)
     public fun sign(v: I64): u8 {
-        ((v.bits / TWO_POW_63) as u8)
+        ((v.bits / BITS_MIN_I64) as u8)
     }
 
     /// Creates and returns an I64 representing zero

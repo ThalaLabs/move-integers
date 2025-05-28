@@ -3,6 +3,17 @@ spec move_int::i64 {
         pragma aborts_if_is_strict;
     }
 
+    /// Interprets the I64 `bits` field as a signed integer.
+    spec fun to_num(i: I64): num {
+        // Compare to 2^127: if gte, value is negative
+        if (i.bits >= BITS_MIN_I64) {
+            // Interpret bits as two's complement negative number
+            (i.bits as num) - TWO_POW_64
+        } else {
+            (i.bits as num)
+        }
+    }
+
     spec from {
         aborts_if v > BITS_MAX_I64 with OVERFLOW;
     }
@@ -15,7 +26,7 @@ spec move_int::i64 {
     }
 
     spec wrapping_add {
-        ensures result.bits == (num1.bits + num2.bits) % MAX_U64_PLUS_ONE;
+        ensures result.bits == (num1.bits + num2.bits) % TWO_POW_64;
     }
 
     spec add {
@@ -39,7 +50,7 @@ spec move_int::i64 {
     }
 
     spec wrapping_sub {
-        ensures result.bits == (num1.bits + twos_complement(num2.bits)) % MAX_U64_PLUS_ONE;
+        ensures result.bits == (num1.bits + twos_complement(num2.bits)) % TWO_POW_64;
     }
 
     spec sub {
@@ -141,6 +152,25 @@ spec move_int::i64 {
         ensures to_num(a) < to_num(b) ==> to_num(result) == to_num(b);
     }
 
+    spec pow {
+        pragma opaque;
+
+        // Blanket aborts_if for ANY overflow at ANY stage (coarse-grained)
+        aborts_if [abstract] true with OVERFLOW;
+
+        // Final result relationship (if no abort)
+        ensures [abstract] result == spec_pow(base, exponent);
+    }
+
+    spec fun spec_pow(base: I64, exponent: u64): I64 {
+        if (exponent == 0) {
+            from(1)
+        }
+        else {
+            mul(base,spec_pow(base, exponent-1))
+        }
+    }
+
     spec sign {
         // Result must be 0 or 1 (unsigned 8-bit)
         ensures result == 0 || result == 1;
@@ -182,10 +212,10 @@ spec move_int::i64 {
         ensures result == (sign(v) == 1);
 
         // If result is true, the number is negative in two's complement
-        ensures result ==> v.bits >= TWO_POW_63;
+        ensures result ==> v.bits >= BITS_MIN_I64;
 
         // If result is false, the number is non-negative
-        ensures !result ==> v.bits < TWO_POW_63;
+        ensures !result ==> v.bits < BITS_MIN_I64;
     }
 
     spec cmp {
@@ -210,6 +240,9 @@ spec move_int::i64 {
 
         // Equivalence with cmp
         ensures result == (cmp(num1, num2) == EQ);
+
+        // If a = b, then b = a
+        ensures eq(num1, num2) ==> eq(num2, num1);
     }
 
     spec gt {
@@ -218,31 +251,46 @@ spec move_int::i64 {
 
         // If gt is true, then not equal
         ensures result ==> !eq(num1, num2);
+
+        // If gt is true, then lt is false
+        ensures gt(num1, num2) ==> lt(num2, num1);
     }
 
     spec gte {
         // Only returns true if num1 is equal to or greater than num2
         ensures result == (cmp(num1, num2) == EQ || cmp(num1, num2) == GT);
+
         // Never returns true if num1 < num2
         ensures cmp(num1, num2) == LT ==> result == false;
+
+        // If a >= b, then b <= a
+        ensures gte(num1, num2) ==> lte(num2, num1);
     }
 
     spec lt {
         // Only returns true if num1 is strictly less than num2
         ensures result == (cmp(num1, num2) == LT);
+
         // Never returns true if num1 >= num2
         ensures (cmp(num1, num2) == EQ || cmp(num1, num2) == GT) ==> result == false;
+
+        // If a < b, then b > a
+        ensures lt(num1, num2) ==> gt(num2, num1);
     }
 
     spec lte {
         // Only returns true if num1 is equal to or less than num2
         ensures result == (cmp(num1, num2) == EQ || cmp(num1, num2) == LT);
+
         // Never returns true if num1 > num2
         ensures cmp(num1, num2) == GT ==> result == false;
+
+        // If a <= b, then b >= a
+        ensures lte(num1, num2) ==> gte(num2, num1);
     }
 
     spec twos_complement {
         ensures v == 0 ==> result == 0;
-        ensures v > 0 ==> result + v == MAX_U64_PLUS_ONE;
+        ensures v > 0 ==> result + v == TWO_POW_64;
     }
 }

@@ -8,13 +8,11 @@ module move_int::i128 {
     /// max number that a I128 could represent = (0 followed by 127 1s) = (1 << 127) - 1
     const BITS_MAX_I128: u128 = 0x7fffffffffffffffffffffffffffffff;
 
-    const TWO_POW_127: u128 = 170141183460469231731687303715884105728;
-
     /// (1 << 128) - 1
     const MAX_U128: u128 = 340282366920938463463374607431768211455;
 
     /// 1 << 128
-    const MAX_U128_PLUS_ONE: u256 = 340282366920938463463374607431768211456;
+    const TWO_POW_U128: u256 = 340282366920938463463374607431768211456;
 
     const LT: u8 = 0;
     const EQ: u8 = 1;
@@ -45,7 +43,7 @@ module move_int::i128 {
 
     /// Performs wrapping addition on two I128 numbers
     public fun wrapping_add(num1: I128, num2: I128): I128 {
-        I128 { bits: (((num1.bits as u256) + (num2.bits as u256)) % MAX_U128_PLUS_ONE as u128) }
+        I128 { bits: (((num1.bits as u256) + (num2.bits as u256)) % TWO_POW_U128 as u128) }
     }
 
     /// Performs checked addition on two I128 numbers, abort on overflow
@@ -145,7 +143,7 @@ module move_int::i128 {
         };
         let result = from(1);
         while (exponent > 0) {
-            if (exponent & 1 == 1) {
+            if (exponent % 2 == 1) {
                 result = mul(result, base);
             };
             base = mul(base, base);
@@ -166,7 +164,7 @@ module move_int::i128 {
 
     /// Returns the sign of an I128 number (0 for positive, 1 for negative)
     public fun sign(v: I128): u8 {
-        ((v.bits / TWO_POW_127) as u8)
+        ((v.bits / BITS_MIN_I128) as u8)
     }
 
     /// Creates and returns an I128 representing zero

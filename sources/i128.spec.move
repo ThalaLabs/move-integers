@@ -6,9 +6,9 @@ spec move_int::i128 {
     /// Interprets the I128 `bits` field as a signed integer.
     spec fun to_num(i: I128): num {
         // Compare to 2^127: if gte, value is negative
-        if (i.bits >= TWO_POW_127) {
+        if (i.bits >= BITS_MIN_I128) {
             // Interpret bits as two's complement negative number
-            (i.bits as num) - MAX_U128_PLUS_ONE
+            (i.bits as num) - TWO_POW_U128
         } else {
             (i.bits as num)
         }
@@ -40,7 +40,7 @@ spec move_int::i128 {
     }
 
     spec wrapping_add {
-        ensures result.bits == (num1.bits + num2.bits) % MAX_U128_PLUS_ONE;
+        ensures result.bits == (num1.bits + num2.bits) % TWO_POW_U128;
     }
 
     spec add {
@@ -68,7 +68,7 @@ spec move_int::i128 {
     }
 
     spec wrapping_sub {
-        ensures result.bits == (num1.bits + twos_complement(num2.bits)) % MAX_U128_PLUS_ONE;
+        ensures result.bits == (num1.bits + twos_complement(num2.bits)) % TWO_POW_U128;
     }
 
     spec sub {
@@ -210,10 +210,10 @@ spec move_int::i128 {
         ensures result == (sign(v) == 1);
 
         // If result is true, the number is negative in two's complement
-        ensures result ==> v.bits >= TWO_POW_127;
+        ensures result ==> v.bits >= BITS_MIN_I128;
 
         // If result is false, the number is non-negative
-        ensures !result ==> v.bits < TWO_POW_127;
+        ensures !result ==> v.bits < BITS_MIN_I128;
     }
 
     spec cmp {
@@ -238,6 +238,9 @@ spec move_int::i128 {
 
         // Equivalence with cmp
         ensures result == (cmp(num1, num2) == EQ);
+
+        // If a = b, then b = a
+        ensures eq(num1, num2) ==> eq(num2, num1);
     }
 
     spec gt {
@@ -246,31 +249,46 @@ spec move_int::i128 {
 
         // If gt is true, then not equal
         ensures result ==> !eq(num1, num2);
+
+        // If gt is true, then lt is false
+        ensures gt(num1, num2) ==> lt(num2, num1);
     }
 
     spec gte {
         // Only returns true if num1 is equal to or greater than num2
         ensures result == (cmp(num1, num2) == EQ || cmp(num1, num2) == GT);
+
         // Never returns true if num1 < num2
         ensures cmp(num1, num2) == LT ==> result == false;
+
+        // If a >= b, then b <= a
+        ensures gte(num1, num2) ==> lte(num2, num1);
     }
 
     spec lt {
         // Only returns true if num1 is strictly less than num2
         ensures result == (cmp(num1, num2) == LT);
+
         // Never returns true if num1 >= num2
         ensures (cmp(num1, num2) == EQ || cmp(num1, num2) == GT) ==> result == false;
+
+        // If a < b, then b > a
+        ensures lt(num1, num2) ==> gt(num2, num1);
     }
 
     spec lte {
         // Only returns true if num1 is equal to or less than num2
         ensures result == (cmp(num1, num2) == EQ || cmp(num1, num2) == LT);
+
         // Never returns true if num1 > num2
         ensures cmp(num1, num2) == GT ==> result == false;
+
+        // If a < b, then b > a
+        ensures lte(num1, num2) ==> gte(num2, num1);
     }
 
     spec twos_complement {
         ensures v == 0 ==> result == 0;
-        ensures v > 0 ==> result + v == MAX_U128_PLUS_ONE;
+        ensures v > 0 ==> result + v == TWO_POW_U128;
     }
 }
