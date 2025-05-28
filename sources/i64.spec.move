@@ -152,25 +152,6 @@ spec move_int::i64 {
         ensures to_num(a) < to_num(b) ==> to_num(result) == to_num(b);
     }
 
-    spec pow {
-        pragma opaque;
-
-        // Blanket aborts_if for ANY overflow at ANY stage (coarse-grained)
-        aborts_if [abstract] true with OVERFLOW;
-
-        // Final result relationship (if no abort)
-        ensures [abstract] result == spec_pow(base, exponent);
-    }
-
-    spec fun spec_pow(base: I64, exponent: u64): I64 {
-        if (exponent == 0) {
-            from(1)
-        }
-        else {
-            mul(base,spec_pow(base, exponent-1))
-        }
-    }
-
     spec sign {
         // Result must be 0 or 1 (unsigned 8-bit)
         ensures result == 0 || result == 1;
