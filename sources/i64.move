@@ -34,6 +34,13 @@ module move_int::i64 {
         I64 { bits: twos_complement(v) }
     }
 
+    public fun neg(v: I64): I64 {
+        if (is_neg(v)) { abs(v) }
+        else {
+            neg_from(v.bits)
+        }
+    }
+
     /// Performs wrapping addition on two I64 numbers
     public fun wrapping_add(num1: I64, num2: I64): I64 {
         I64 { bits: (((num1.bits as u128) + (num2.bits as u128)) % TWO_POW_64 as u64) }
@@ -118,7 +125,6 @@ module move_int::i64 {
     }
 
     /// Raises an I64 number to a u64 power
-    // TODO: Spec method that plays nicely with loops ("enter loop, variable(s) base, exponent, result havocked and reassigned")
     public fun pow(base: I64, exponent: u64): I64 {
         if (exponent == 0) {
             return from(1)
