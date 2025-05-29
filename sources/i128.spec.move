@@ -198,9 +198,9 @@ spec move_int::i128 {
         // Blanket aborts with overflow if any intermediate multiplication overflows
         aborts_with OVERFLOW;
 
-        // FIXME: post-condition does not hold however the similar function `i64::pow` passes
+        // Fixme: remove [abstract] tag once there exists a concrete proof for pow
         // Final result relationship (if no abort)
-        // ensures result == spec_pow(base, exponent);
+        ensures [abstract] result == spec_pow(base, exponent);
     }
 
     spec fun spec_pow(base: I128, exponent: u64): I128 {

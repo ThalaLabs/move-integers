@@ -186,6 +186,7 @@ spec move_int::i64 {
         // Blanket aborts with overflow if any intermediate multiplication overflows
         aborts_with OVERFLOW;
 
+        // Fixme: remove [abstract] tag once there exists a concrete proof for pow
         // Final result relationship (if no abort)
         ensures [abstract] result == spec_pow(base, exponent);
     }
