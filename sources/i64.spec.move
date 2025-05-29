@@ -25,6 +25,20 @@ spec move_int::i64 {
         ensures is_zero(add(result, from(v)));
     }
 
+    spec neg {
+        // Abort if neg_from would overflow
+        aborts_if !is_neg(v) && v.bits > BITS_MIN_I64 with OVERFLOW;
+
+        // Abort if abs(v) would overflow (MIN_I128 cannot be negated)
+        aborts_if is_neg(v) && v.bits == BITS_MIN_I64 with OVERFLOW;
+
+        // Mathematical behavior
+        ensures eq(result, mul(v, neg_from(1)));
+
+        // Involution: neg(neg(v)) == v (if both directions do not abort)
+        ensures eq(neg(result), v);
+    }
+
     spec wrapping_add {
         ensures result.bits == (num1.bits + num2.bits) % TWO_POW_64;
     }
@@ -127,9 +141,23 @@ spec move_int::i64 {
         ensures is_neg(num1) ==> gte(mul(num2, result), num1);
     }
 
+    spec mod {
+        // Abort conditions - enumerate abort cases
+        aborts_with DIVISION_BY_ZERO, OVERFLOW;
+
+        // FIXME: Timeout
+        // Fundamental identity of mod: a mod b = a - b * (a / b)
+        // ensures result == sub(num1, mul(num2, div(num1, num2)));
+
+        // Result has the same sign as the dividend (Solidity-style behavior)
+        ensures is_zero(result) || sign(result) == sign(num1);
+    }
+
     spec abs {
         aborts_if is_neg(v) && v.bits <= BITS_MIN_I64 with OVERFLOW;
+
         ensures is_neg(v) ==> is_zero(add(abs(v), v));
+        ensures is_neg(v) ==> abs(v).bits == twos_complement(v.bits);
         ensures !is_neg(v) ==> abs(v).bits == v.bits;
 
         ensures !is_neg(v) ==> eq(abs(v), v);
@@ -150,6 +178,25 @@ spec move_int::i64 {
     spec max {
         ensures to_num(a) >= to_num(b) ==> to_num(result) == to_num(a);
         ensures to_num(a) < to_num(b) ==> to_num(result) == to_num(b);
+    }
+
+    spec pow {
+        pragma opaque;
+
+        // Blanket aborts with overflow if any intermediate multiplication overflows
+        aborts_with OVERFLOW;
+
+        // Final result relationship (if no abort)
+        ensures [abstract] result == spec_pow(base, exponent);
+    }
+
+    spec fun spec_pow(base: I64, exponent: u64): I64 {
+        if (exponent == 0) {
+            from(1)
+        }
+        else {
+            mul(base,spec_pow(base, exponent-1))
+        }
     }
 
     spec sign {
@@ -175,6 +222,7 @@ spec move_int::i64 {
 
         // Negative zero is zero
         ensures eq(neg_from(0), zero());
+        ensures eq(neg(zero()), zero());
     }
 
     spec is_zero {

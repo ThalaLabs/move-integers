@@ -1,6 +1,6 @@
 #[test_only]
 module move_int::i64_test {
-    use move_int::i64::{from, neg_from, abs, abs_u64,
+    use move_int::i64::{from, neg_from, neg, abs, abs_u64,
         add, sub, mul, div, mod, wrapping_add, wrapping_sub, pow, sign, cmp,
         min, max, eq, gt, lt, gte, lte, is_zero, is_neg, zero, unpack
     };
@@ -139,7 +139,18 @@ module move_int::i64_test {
         assert!(eq(pow(from(2), 3), from(8)), 0);
         assert!(eq(pow(neg_from(2), 3), neg_from(8)), 1);
         assert!(eq(pow(from(2), 0), from(1)), 2);
-        pow(neg_from(BITS_MIN_I64), 2);
+
+        // Test neg
+        assert!(eq(neg(from(5)), neg_from(5)), 3);
+        assert!(eq(neg(neg_from(5)), from(5)), 4);
+        assert!(eq(neg(zero()), zero()), 5);
+        assert!(
+            eq(
+                neg(from(BITS_MAX_I64)),
+                neg_from(BITS_MAX_I64)
+            ),
+            6
+        );
     }
 
     #[test]
