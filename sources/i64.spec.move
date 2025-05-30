@@ -62,11 +62,7 @@ spec move_int::i64 {
         // Soundness: result equals num1 + num2 in num domain
         ensures to_num(result) == to_num(num1) + to_num(num2);
 
-        ensures result == spec_add(num1, num2);
-    }
-
-    spec fun spec_add(num1: I64, num2: I64): I64 {
-        wrapping_add(num1, num2)
+        ensures result == wrapping_add(num1, num2);
     }
 
     spec wrapping_sub {
@@ -90,11 +86,7 @@ spec move_int::i64 {
         // Subtraction behaves like adding the negative in num space
         ensures to_num(result) == to_num(num1) + to_num(from(twos_complement(num2.bits)));
 
-        ensures result == spec_sub(num1,  num2);
-    }
-
-    spec fun spec_sub(num1: I64, num2: I64): I64 {
-        spec_add(num1, I64 { bits: twos_complement(num2.bits) })
+        ensures result == wrapping_sub(num1,  num2);
     }
 
     spec mul {
@@ -124,8 +116,6 @@ spec move_int::i64 {
     }
 
     spec div {
-        // pragma opaque;
-
         // Abort conditions
         aborts_if is_zero(num2) with DIVISION_BY_ZERO;
 
@@ -162,7 +152,7 @@ spec move_int::i64 {
         aborts_with DIVISION_BY_ZERO, OVERFLOW;
 
         // Fundamental identity of mod: a mod b = a - b * (a / b)
-        ensures result == spec_sub(num1, mul(num2, div(num1, num2)));
+        ensures result == wrapping_sub(num1, mul(num2, div(num1, num2)));
 
         // Result has the same sign as the dividend (Solidity-style behavior)
         ensures is_zero(result) || sign(result) == sign(num1);
@@ -171,13 +161,13 @@ spec move_int::i64 {
     spec fun spec_mod(num1: I64, num2: I64): I64 {
         let quotient = div(num1, num2);
         let mul_result = mul(num2, quotient);
-        spec_sub(num1, mul_result)
+        wrapping_sub(num1, mul_result)
     }
 
     spec abs {
         aborts_if is_neg(v) && v.bits <= BITS_MIN_I64 with OVERFLOW;
 
-        ensures is_neg(v) ==> is_zero(spec_add(abs(v), v));
+        ensures is_neg(v) ==> is_zero(wrapping_add(abs(v), v));
         ensures is_neg(v) ==> abs(v).bits == twos_complement(v.bits);
         ensures !is_neg(v) ==> abs(v).bits == v.bits;
 
@@ -201,6 +191,7 @@ spec move_int::i64 {
         ensures to_num(a) < to_num(b) ==> to_num(result) == to_num(b);
     }
 
+    // ref: https://github.com/aptos-labs/aptos-core/blob/9927f302155040cc5d4efc8d16ef53f554e66a14/third_party/move/move-prover/tests/sources/functional/math8.move#L74
     spec pow {
         pragma opaque;
         // Limits to 2 unrolls of the while loop.
