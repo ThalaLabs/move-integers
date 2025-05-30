@@ -1,7 +1,7 @@
 #[test_only]
 module move_int::i128_test {
     use move_int::i128::{from, neg_from, abs, abs_u128, add, sub, mul,
-        div, wrapping_add, wrapping_sub, overflowing_add, overflowing_sub, pow, mod, neg,
+        div, wrapping_add, wrapping_sub, pow, mod, neg,
         sign, cmp, min, max, eq, gt, lt, gte, lte, is_zero, is_neg, zero, unpack
     };
 
@@ -67,25 +67,6 @@ module move_int::i128_test {
             unpack(wrapping_sub(from(0), from(1))) == unpack(neg_from(1)),
             3
         );
-
-        // Test overflowing operations
-        let (result, overflow) = overflowing_add(
-            from(BITS_MAX_I128), neg_from(1)
-        );
-        assert!(
-            !overflow && unpack(result) == BITS_MAX_I128 - 1,
-            4
-        );
-        let (_, overflow) = overflowing_add(from(BITS_MAX_I128), from(1));
-        assert!(overflow, 5);
-
-        let (result, overflow) = overflowing_sub(from(BITS_MAX_I128), from(1));
-        assert!(
-            !overflow && unpack(result) == BITS_MAX_I128 - 1,
-            6
-        );
-        let (_, overflow) = overflowing_sub(neg_from(BITS_MIN_I128), from(1));
-        assert!(overflow, 7);
 
         // Test basic operations
         assert!(unpack(add(from(15), from(25))) == 40, 8);

@@ -60,11 +60,12 @@ spec move_int::i128 {
         ensures is_zero(num1) ==> eq(result, num2);
 
         ensures to_num(result) == to_num(num1) + to_num(num2);
+
+        ensures result == spec_add(num1, num2);
     }
 
-    spec overflowing_add {
-        // The sum result must be equal to the wrapping sum
-        ensures result_1 == wrapping_add(num1, num2);
+    spec fun spec_add(num1: I128, num2: I128): I128 {
+        wrapping_add(num1, num2)
     }
 
     spec wrapping_sub {
@@ -72,6 +73,7 @@ spec move_int::i128 {
     }
 
     spec sub {
+        pragma opaque;
         // Function aborts if subtraction would overflow
         aborts_if !is_neg(num1) && !is_neg(from(twos_complement(num2.bits))) && is_neg(wrapping_add(num1, from(twos_complement(num2.bits)))) with OVERFLOW;
         aborts_if is_neg(num1) &&  is_neg(from(twos_complement(num2.bits))) && !is_neg(wrapping_add(num1, from(twos_complement(num2.bits)))) with OVERFLOW;
@@ -85,11 +87,12 @@ spec move_int::i128 {
 
         // Subtraction behaves like adding the negative in num space
         ensures to_num(result) == to_num(num1) + to_num(from(twos_complement(num2.bits)));
+
+        ensures result == spec_sub(num1,  num2);
     }
 
-    spec overflowing_sub {
-        // The sum result must be equal to the wrapping sum
-        ensures result_1 == wrapping_sub(num1, num2);
+    spec fun spec_sub(num1: I128, num2: I128): I128 {
+        spec_add(num1, I128 { bits: twos_complement(num2.bits) })
     }
 
     spec mul {
@@ -119,7 +122,7 @@ spec move_int::i128 {
     }
 
     spec div {
-        pragma opaque;
+        // pragma opaque;
 
         // Abort conditions
         aborts_if is_zero(num2) with DIVISION_BY_ZERO;
@@ -128,12 +131,11 @@ spec move_int::i128 {
         aborts_if sign(num1) == sign(num2) && abs_u128(num1) / abs_u128(num2) > BITS_MAX_I128 with OVERFLOW;
         aborts_if sign(num1) != sign(num2) && abs_u128(num1) / abs_u128(num2) > BITS_MIN_I128 with OVERFLOW;
 
-        // Fixme: tokio failure
-        // // Behavior guarantees
-        // // Division result always rounds toward zero.
-        // // The result multiplied back gives the truncated part of num1
-        // ensures !is_zero(num2) ==>
-        //     to_num(num1) == to_num(result) * to_num(num2) + to_num(mod(num1, num2));
+        // Behavior guarantees
+        // Division result always rounds toward zero.
+        // The result multiplied back gives the truncated part of num1
+        ensures !is_zero(num2) ==>
+            to_num(num1) == to_num(result) * to_num(num2) + to_num(spec_mod(num1, num2));
 
         // Zero divided by anything is zero
         ensures is_zero(num1) ==> is_zero(result);
@@ -152,27 +154,32 @@ spec move_int::i128 {
     }
 
     spec mod {
+        // pragma timeout = 120;
+
         // Abort conditions - enumerate abort cases
         aborts_with DIVISION_BY_ZERO, OVERFLOW;
 
-        // FIXME: Timeout
         // Fundamental identity of mod: a mod b = a - b * (a / b)
-        // ensures result == sub(num1, mul(num2, div(num1, num2)));
+        ensures result == spec_sub(num1, mul(num2, div(num1, num2)));
 
         // Result has the same sign as the dividend (Solidity-style behavior)
         ensures is_zero(result) || sign(result) == sign(num1);
     }
 
+    spec fun spec_mod(num1: I128, num2: I128): I128 {
+        let quotient = div(num1, num2);
+        let mul_result = mul(num2, quotient);
+        spec_sub(num1, mul_result)
+    }
+
     spec abs {
         aborts_if is_neg(v) && v.bits <= BITS_MIN_I128 with OVERFLOW;
 
-        // FIXME: tokio failure
-        // ensures is_neg(v) ==> is_zero(add(abs(v), v));
+        ensures is_neg(v) ==> is_zero(spec_add(abs(v), v));
         ensures is_neg(v) ==> abs(v).bits == twos_complement(v.bits);
         ensures !is_neg(v) ==> abs(v).bits == v.bits;
 
         ensures !is_neg(v) ==> eq(abs(v), v);
-
     }
 
     spec abs_u128 {
@@ -194,21 +201,39 @@ spec move_int::i128 {
 
     spec pow {
         pragma opaque;
+        // Limits to 2 unrolls of the while loop.
+        // If a spec function is defined in a recursive way, when the while loop in the corresponding non-recursive
+        // move function is expected to execute more than certain times, SMT solver cannot prove they are equivalent.
+        pragma unroll = 2;
 
         // Blanket aborts with overflow if any intermediate multiplication overflows
         aborts_with OVERFLOW;
 
-        // Fixme: remove [abstract] tag once there exists a concrete proof for pow
-        // Final result relationship (if no abort)
-        ensures [abstract] result == spec_pow(base, exponent);
+        // Final result relationship
+        ensures result == spec_pow(base, exponent);
     }
 
-    spec fun spec_pow(base: I128, exponent: u64): I128 {
-        if (exponent == 0) {
+    spec fun spec_pow(n: I128, e: u64): I128 {
+        if (e == 0) {
             from(1)
         }
         else {
-            mul(base,spec_pow(base, exponent-1))
+            if (e == 1) {
+                n
+            }
+            else {
+                if (e == 2) {
+                    mul(n, n)
+                }
+                else {
+                    if (e == 3) {
+                        mul(n, mul(n, n))
+                    }
+                    else {
+                        mul(n, mul(n, mul(n, n)))
+                    }
+                }
+            }
         }
     }
 

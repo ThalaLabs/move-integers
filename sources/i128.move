@@ -48,20 +48,14 @@ module move_int::i128 {
 
     /// Performs checked addition on two I128 numbers, abort on overflow
     public fun add(num1: I128, num2: I128): I128 {
-        let (sum, overflow) = overflowing_add(num1, num2);
-        assert!(!overflow, OVERFLOW);
-        sum
-    }
-
-    /// Performs addition on two I128 numbers, returning the result and a boolean indicating overflow
-    public fun overflowing_add(num1: I128, num2: I128): (I128, bool) {
         let sum = wrapping_add(num1, num2);
         // overflow only if: (1) postive + postive = negative, OR (2) negative + negative = positive
         let is_num1_neg = is_neg(num1);
         let is_num2_neg = is_neg(num2);
         let is_sum_neg = is_neg(sum);
         let overflow = (is_num1_neg && is_num2_neg && !is_sum_neg) || (!is_num1_neg && !is_num2_neg && is_sum_neg);
-        (sum, overflow)
+        assert!(!overflow, OVERFLOW);
+        sum
     }
 
     /// Performs wrapping subtraction on two I128 numbers
@@ -72,12 +66,6 @@ module move_int::i128 {
     /// Performs checked subtraction on two I128 numbers, asserting on overflow
     public fun sub(num1: I128, num2: I128): I128 {
         add(num1, I128 { bits: twos_complement(num2.bits) })
-    }
-
-    /// Performs subtraction on two I128 numbers, returning the result and a boolean indicating overflow
-    public fun overflowing_sub(num1: I128, num2: I128): (I128, bool) {
-        let sub_num = I128 { bits: twos_complement(num2.bits) };
-        overflowing_add(num1, sub_num)
     }
 
     /// Performs multiplication on two I128 numbers
