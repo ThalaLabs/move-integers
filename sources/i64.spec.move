@@ -127,7 +127,7 @@ spec move_int::i64 {
         // Division result always rounds toward zero.
         // The result multiplied back gives the truncated part of num1
         ensures !is_zero(num2) ==>
-            to_num(num1) == to_num(result) * to_num(num2) + to_num(spec_mod(num1, num2));
+            to_num(num1) == to_num(result) * to_num(num2) + to_num(mod(num1, num2));
 
         // Zero divided by anything is zero
         ensures is_zero(num1) ==> is_zero(result);
@@ -156,12 +156,6 @@ spec move_int::i64 {
 
         // Result has the same sign as the dividend (Solidity-style behavior)
         ensures is_zero(result) || sign(result) == sign(num1);
-    }
-
-    spec fun spec_mod(num1: I64, num2: I64): I64 {
-        let quotient = div(num1, num2);
-        let mul_result = mul(num2, quotient);
-        wrapping_sub(num1, mul_result)
     }
 
     spec abs {
