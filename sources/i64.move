@@ -221,9 +221,4 @@ module move_int::i64 {
         // (1 << 64) - v
         else MAX_U64 - v + 1
     }
-
-    #[test_only]
-    fun twos_complement_for_test(v: u64): u64 {
-        twos_complement(v)
-    }
 }

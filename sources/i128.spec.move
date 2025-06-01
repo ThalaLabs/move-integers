@@ -144,8 +144,6 @@ spec move_int::i128 {
     }
 
     spec mod {
-        // pragma timeout = 120;
-
         // Abort conditions - enumerate abort cases
         aborts_with DIVISION_BY_ZERO, OVERFLOW;
 
