@@ -65,7 +65,10 @@ module move_int::i64 {
 
     /// Performs checked subtraction on two I64 numbers, asserting on overflow
     public fun sub(num1: I64, num2: I64): I64 {
-        add(num1, I64 { bits: twos_complement(num2.bits) })
+        let difference = wrapping_sub(num1, num2);
+        let overflow = sign(num1) != sign(num2) && sign(num1) != sign(difference);
+        assert!(!overflow, OVERFLOW);
+        difference
     }
 
     /// Performs multiplication on two I64 numbers

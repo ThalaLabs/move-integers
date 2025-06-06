@@ -12,7 +12,7 @@ module move_int::i128 {
     const MAX_U128: u128 = 340282366920938463463374607431768211455;
 
     /// 1 << 128
-    const TWO_POW_U128: u256 = 340282366920938463463374607431768211456;
+    const TWO_POW_128: u256 = 340282366920938463463374607431768211456;
 
     const LT: u8 = 0;
     const EQ: u8 = 1;
@@ -43,7 +43,7 @@ module move_int::i128 {
 
     /// Performs wrapping addition on two I128 numbers
     public fun wrapping_add(num1: I128, num2: I128): I128 {
-        I128 { bits: (((num1.bits as u256) + (num2.bits as u256)) % TWO_POW_U128 as u128) }
+        I128 { bits: (((num1.bits as u256) + (num2.bits as u256)) % TWO_POW_128 as u128) }
     }
 
     /// Performs checked addition on two I128 numbers, abort on overflow
@@ -65,7 +65,10 @@ module move_int::i128 {
 
     /// Performs checked subtraction on two I128 numbers, asserting on overflow
     public fun sub(num1: I128, num2: I128): I128 {
-        add(num1, I128 { bits: twos_complement(num2.bits) })
+        let difference = wrapping_sub(num1, num2);
+        let overflow = sign(num1) != sign(num2) && sign(num1) != sign(difference);
+        assert!(!overflow, OVERFLOW);
+        difference
     }
 
     /// Performs multiplication on two I128 numbers

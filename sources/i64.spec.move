@@ -3,26 +3,24 @@ spec move_int::i64 {
         pragma aborts_if_is_strict;
     }
 
-    /// Interprets the I64 `bits` field as a signed integer.
     spec fun to_num(i: I64): num {
-        // Compare to 2^127: if gte, value is negative
-        if (i.bits >= BITS_MIN_I64) {
-            // Interpret bits as two's complement negative number
-            (i.bits as num) - TWO_POW_64
-        } else {
-            (i.bits as num)
-        }
+        if (i.bits >= BITS_MIN_I64) (i.bits as num) - TWO_POW_64
+        else (i.bits as num)
     }
 
     spec from {
         aborts_if v > BITS_MAX_I64 with OVERFLOW;
+
+        ensures to_num(result) == v;
     }
 
     spec neg_from {
         aborts_if v > BITS_MIN_I64 with OVERFLOW;
 
-        // from(v) + neg_from(v) == 0
+        // v + (-v) == 0
         ensures is_zero(add(result, from(v)));
+
+        ensures to_num(result) + v == 0;
     }
 
     spec neg {
@@ -32,11 +30,13 @@ spec move_int::i64 {
         // Abort if abs(v) would overflow (MIN_I128 cannot be negated)
         aborts_if is_neg(v) && v.bits == BITS_MIN_I64 with OVERFLOW;
 
-        // Mathematical behavior
+        // -v = v * -1
         ensures eq(result, mul(v, neg_from(1)));
 
-        // Involution: neg(neg(v)) == v (if both directions do not abort)
+        // -(-v) = v
         ensures eq(neg(result), v);
+
+        ensures to_num(result) + to_num(v) == 0;
     }
 
     spec wrapping_add {
@@ -46,23 +46,29 @@ spec move_int::i64 {
     spec add {
         pragma opaque;
 
-        // Abort conditions
-        // Overflow when: two positives yield negative, or two negatives yield positive
+        // overflow when: two positives yield negative, or two negatives yield positive
         aborts_if !is_neg(num1) && !is_neg(num2) && is_neg(wrapping_add(num1, num2)) with OVERFLOW;
         aborts_if is_neg(num1) && is_neg(num2) && !is_neg(wrapping_add(num1, num2)) with OVERFLOW;
 
-        // Inverse property
-        // add(a, -a) = 0
-        ensures eq(abs(num1), abs(num2)) && sign(num1) != sign(num2) ==> is_zero(result);
+        // by definition
+        ensures result == wrapping_add(num1, num2);
 
-        // Identity properties
+        // a + (-a) = 0
+        ensures eq(num1, neg(num2)) ==> is_zero(result);
+
+        // a + 0 = a
         ensures is_zero(num2) ==> eq(result, num1);
+
+        // 0 + a = a
         ensures is_zero(num1) ==> eq(result, num2);
 
-        // Soundness: result equals num1 + num2 in num domain
-        ensures to_num(result) == to_num(num1) + to_num(num2);
+        // a + b >= a if b >= 0
+        ensures !is_neg(num2) ==> gte(result, num1);
 
-        ensures result == wrapping_add(num1, num2);
+        // a + b < a if b < 0
+        ensures is_neg(num2) ==> lt(result, num1);
+
+        ensures to_num(result) == to_num(num1) + to_num(num2);
     }
 
     spec wrapping_sub {
@@ -72,21 +78,29 @@ spec move_int::i64 {
     spec sub {
         pragma opaque;
 
-        // Function aborts if subtraction would overflow
-        aborts_if !is_neg(num1) && !is_neg(from(twos_complement(num2.bits))) && is_neg(wrapping_add(num1, from(twos_complement(num2.bits)))) with OVERFLOW;
-        aborts_if is_neg(num1) &&  is_neg(from(twos_complement(num2.bits))) && !is_neg(wrapping_add(num1, from(twos_complement(num2.bits)))) with OVERFLOW;
+        // overflow when positive - negative = negative or negative - positive = positive
+        aborts_if !is_neg(num1) && is_neg(num2) && is_neg(wrapping_sub(num1, num2)) with OVERFLOW;
+        aborts_if is_neg(num1) && !is_neg(num2) && !is_neg(wrapping_sub(num1, num2)) with OVERFLOW;
 
-        // Subtracting zero returns the original number
-        ensures is_zero(num1) ==> result.bits == twos_complement(num2.bits);
+        // by definition
+        ensures result == wrapping_sub(num1,  num2);
+
+        // a - 0 = a
+        ensures is_zero(num1) ==> eq(result, neg(num2));
+
+        // 0 - a = -a
         ensures is_zero(num2) ==> eq(result, num1);
 
-        // Subtracting a number from itself gives zero
+        // a - a = 0
         ensures eq(num1, num2) ==> is_zero(result);
 
-        // Subtraction behaves like adding the negative in num space
-        ensures to_num(result) == to_num(num1) + to_num(from(twos_complement(num2.bits)));
+        // a - b <= a if b >= 0
+        ensures !is_neg(num2) ==> lte(result, num1);
 
-        ensures result == wrapping_sub(num1,  num2);
+        // a - b > a if b < 0
+        ensures is_neg(num2) ==> gt(result, num1);
+
+        ensures to_num(result) == to_num(num1) - to_num(num2);
     }
 
     spec mul {
@@ -101,17 +115,18 @@ spec move_int::i64 {
             (abs_u64(num1) as u128) * (abs_u64(num2) as u128) > (BITS_MAX_I64 as u128)
             with OVERFLOW;
 
-        // result is positive, sign(num1) == sign(num2)
+        // if result is positive, then num1 and num2 are same sign
         ensures !is_neg(result) && !is_zero(result) ==> sign(num1) == sign(num2);
 
-        // result is negative, sign(num1) != sign(num2)
-        ensures is_neg(result) && !is_zero(result) ==> sign(num1) != sign(num2);
+        // if result is negative, then num1 and num2 are different sign
+        ensures is_neg(result) ==> sign(num1) != sign(num2);
 
-        // result is 0, num1 is zero or num2 is zero
+        // if result is 0, then either num1 or num2 is 0
         ensures is_zero(result) ==> is_zero(num1) || is_zero(num2);
 
-        // Behavior guarantees
+        // a * b = b * a
         ensures eq(result, mul(num2, num1));
+
         ensures to_num(result) == to_num(num1) * to_num(num2);
     }
 
@@ -129,7 +144,7 @@ spec move_int::i64 {
         ensures !is_zero(num2) ==>
             to_num(num1) == to_num(result) * to_num(num2) + to_num(mod(num1, num2));
 
-        // Zero divided by anything is zero
+        // 0 / a = 0
         ensures is_zero(num1) ==> is_zero(result);
 
         // Sign correctness
@@ -154,23 +169,35 @@ spec move_int::i64 {
 
         // Result has the same sign as the dividend (Solidity-style behavior)
         ensures is_zero(result) || sign(result) == sign(num1);
+
+        ensures to_num(result) + to_num(num2) * to_num(div(num1, num2)) == to_num(num1);
     }
 
     spec abs {
         aborts_if is_neg(v) && v.bits <= BITS_MIN_I64 with OVERFLOW;
 
-        ensures is_neg(v) ==> is_zero(wrapping_add(abs(v), v));
+        // by definition
         ensures is_neg(v) ==> abs(v).bits == twos_complement(v.bits);
         ensures !is_neg(v) ==> abs(v).bits == v.bits;
 
+        // if a < 0, a + abs(a) = 0
+        ensures is_neg(v) ==> is_zero(add(abs(v), v));
+        ensures is_neg(v) ==> to_num(v) + to_num(result) == 0;
+
+        // if a >= 0, a = abs(a)
         ensures !is_neg(v) ==> eq(abs(v), v);
+        ensures !is_neg(v) ==> to_num(v) == to_num(result);
     }
 
     spec abs_u64 {
         aborts_if is_neg(v) && v.bits < BITS_MIN_I64 with OVERFLOW;
 
+        // by definition
         ensures is_neg(v) ==> result == twos_complement(v.bits);
         ensures !is_neg(v) ==> result == v.bits;
+
+        ensures is_neg(v) ==> result + to_num(v) == 0;
+        ensures !is_neg(v) ==> result == to_num(v);
     }
 
     spec min {
@@ -295,6 +322,9 @@ spec move_int::i64 {
 
         // If a = b, then b = a
         ensures eq(num1, num2) ==> eq(num2, num1);
+
+        ensures result ==> to_num(num1) == to_num(num2);
+        ensures !result ==> to_num(num1) != to_num(num2);
     }
 
     spec gt {
@@ -306,6 +336,9 @@ spec move_int::i64 {
 
         // If gt is true, then lt is false
         ensures gt(num1, num2) ==> lt(num2, num1);
+
+        ensures result ==> to_num(num1) > to_num(num2);
+        ensures !result ==> to_num(num1) <= to_num(num2);
     }
 
     spec gte {
@@ -317,6 +350,9 @@ spec move_int::i64 {
 
         // If a >= b, then b <= a
         ensures gte(num1, num2) ==> lte(num2, num1);
+
+        ensures result ==> to_num(num1) >= to_num(num2);
+        ensures !result ==> to_num(num1) < to_num(num2);
     }
 
     spec lt {
@@ -328,6 +364,9 @@ spec move_int::i64 {
 
         // If a < b, then b > a
         ensures lt(num1, num2) ==> gt(num2, num1);
+
+        ensures result ==> to_num(num1) < to_num(num2);
+        ensures !result ==> to_num(num1) >= to_num(num2);
     }
 
     spec lte {
@@ -339,6 +378,9 @@ spec move_int::i64 {
 
         // If a <= b, then b >= a
         ensures lte(num1, num2) ==> gte(num2, num1);
+
+        ensures result ==> to_num(num1) <= to_num(num2);
+        ensures !result ==> to_num(num1) > to_num(num2);
     }
 
     spec twos_complement {
