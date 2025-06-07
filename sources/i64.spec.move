@@ -3,11 +3,6 @@ spec move_int::i64 {
         pragma aborts_if_is_strict;
     }
 
-    spec fun to_num(i: I64): num {
-        if (i.bits >= BITS_MIN_I64) (i.bits as num) - TWO_POW_64
-        else (i.bits as num)
-    }
-
     spec from {
         aborts_if v > BITS_MAX_I64 with OVERFLOW;
 

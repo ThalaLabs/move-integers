@@ -224,4 +224,9 @@ module move_int::i64 {
         // (1 << 64) - v
         else MAX_U64 - v + 1
     }
+
+    spec fun to_num(i: I64): num {
+        if (i.bits >= BITS_MIN_I64) (i.bits as num) - TWO_POW_64
+        else (i.bits as num)
+    }
 }
