@@ -3,16 +3,16 @@ module move_int::i128 {
     const DIVISION_BY_ZERO: u64 = 1;
 
     /// min number that a I128 could represent = (1 followed by 127 0s) = 1 << 127
-    const BITS_MIN_I128: u128 = 1 << 127;
+    const BITS_MIN_I128: u128 = 0x80000000000000000000000000000000;
 
     /// max number that a I128 could represent = (0 followed by 127 1s) = (1 << 127) - 1
     const BITS_MAX_I128: u128 = 0x7fffffffffffffffffffffffffffffff;
 
     /// (1 << 128) - 1
-    const MAX_U128: u128 = 340282366920938463463374607431768211455;
+    const MAX_U128: u128 = 0xffffffffffffffffffffffffffffffff;
 
     /// 1 << 128
-    const TWO_POW_128: u256 = 340282366920938463463374607431768211456;
+    const TWO_POW_128: u256 = 0x100000000000000000000000000000000;
 
     const LT: u8 = 0;
     const EQ: u8 = 1;
