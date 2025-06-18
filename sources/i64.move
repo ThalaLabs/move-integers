@@ -3,16 +3,16 @@ module move_int::i64 {
     const DIVISION_BY_ZERO: u64 = 1;
 
     /// min number that a I64 could represent = (1 followed by 63 0s) = 1 << 63
-    const BITS_MIN_I64: u64 = 1 << 63;
+    const BITS_MIN_I64: u64 = 0x8000000000000000;
 
     /// max number that a I64 could represent = (0 followed by 63 1s) = (1 << 63) - 1
     const BITS_MAX_I64: u64 = 0x7fffffffffffffff;
 
     /// (1 << 64) - 1
-    const MAX_U64: u64 = 18446744073709551615;
+    const MAX_U64: u64 = 0xffffffffffffffff;
 
     /// 1 << 64
-    const TWO_POW_64: u128 = 18446744073709551616;
+    const TWO_POW_64: u128 = 0x10000000000000000;
 
     const LT: u8 = 0;
     const EQ: u8 = 1;
