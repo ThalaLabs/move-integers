@@ -107,12 +107,12 @@ spec move_int::i128 {
         // Abort conditions
         // If result should be negative (opposite signs), must not exceed abs(MIN_I128)
         aborts_if sign(num1) != sign(num2) &&
-            (abs_u128(num1) as u128) * (abs_u128(num2) as u128) > (BITS_MIN_I128 as u128)
+            (abs_u128(num1) as u256) * (abs_u128(num2) as u256) > (BITS_MIN_I128 as u256)
             with OVERFLOW;
 
         // If result should be positive (same signs), must not exceed MAX_I128
         aborts_if sign(num1) == sign(num2) &&
-            (abs_u128(num1) as u128) * (abs_u128(num2) as u128) > (BITS_MAX_I128 as u128)
+            (abs_u128(num1) as u256) * (abs_u128(num2) as u256) > (BITS_MAX_I128 as u256)
             with OVERFLOW;
 
         // if result is positive, then num1 and num2 are same sign
