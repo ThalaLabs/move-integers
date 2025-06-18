@@ -50,10 +50,7 @@ module move_int::i128 {
     public fun add(num1: I128, num2: I128): I128 {
         let sum = wrapping_add(num1, num2);
         // overflow only if: (1) postive + postive = negative, OR (2) negative + negative = positive
-        let is_num1_neg = is_neg(num1);
-        let is_num2_neg = is_neg(num2);
-        let is_sum_neg = is_neg(sum);
-        let overflow = (is_num1_neg && is_num2_neg && !is_sum_neg) || (!is_num1_neg && !is_num2_neg && is_sum_neg);
+        let overflow = sign(num1) == sign(num2) && sign(num1) != sign(sum);
         assert!(!overflow, OVERFLOW);
         sum
     }
