@@ -135,7 +135,7 @@ module move_int::i128 {
                 result = mul(result, base);
             };
             base = mul(base, base);
-            exponent >>= 1;
+            exponent = exponent / 2;
         };
         result
     }
