@@ -4,7 +4,7 @@ version = "1.0.0"
 authors = ["0xAnto"]
 
 [addresses]
-move_int = "0xfff1e5bad5901cdb1c6755ece8603b992b3f0000a3e5b96d8d0bdc49d6433fff"
+move_int = "0x22fd2f1104e76c947e132056e67f1a30f45833093e99fe75b23cb9e20a72e7ee"
 
 [dependencies.AptosFramework]
 git = "https://github.com/movementlabsxyz/aptos-core.git"
