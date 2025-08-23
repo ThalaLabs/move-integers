@@ -4,7 +4,7 @@ version = "1.0.0"
 authors = ["0xAnto"]
 
 [addresses]
-move_int = "0xfff1e5bad5901cdb1c6755ece8603b992b3f0000a3e5b96d8d0bdc49d6433fff"
+move_int = "0x4dcae85fc5559071906cd5c76b7420fcbb4b0a92f00ab40ffc394aadbbff5ee9"
 
 [dependencies.AptosFramework]
 git = "https://github.com/aptos-labs/aptos-framework.git"
