@@ -8,5 +8,5 @@ move_int = "0xcff27db92178da13d6543c9036552fcee0f4c7a2cca464e58bab1f40db2296e7"
 
 [dependencies.AptosFramework]
 git = "https://github.com/movementlabsxyz/aptos-core.git"
-rev = "l1-migration-move2"
+rev = "m1"
 subdir = "aptos-move/framework/aptos-framework"
